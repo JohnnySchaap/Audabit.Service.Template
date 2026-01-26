@@ -1,0 +1,232 @@
+trigger:
+  branches:
+    include:
+    - main
+    - develop
+    - feature/*
+    - release/*
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+name: $(Date:yyMMdd)$(Rev:.rr)
+
+variables:
+  buildConfiguration: 'Release'
+  GitHubOwner: 'JohnnySchaap'
+  AzureArtifactsFeed: 'Audabit/Audabit'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+stages:
+- stage: Build
+  displayName: 'Build and Package'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build Service and NuGet Package'
+    variables:
+    - group: GitHubSecrets
+    steps:
+    - checkout: self
+      fetchDepth: 0
+      persistCredentials: true
+    
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '10.x'
+        
+    # Generate versions from build number
+    - task: PowerShell@2
+      displayName: 'Generate Version Numbers'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $buildNumber = "$(Build.BuildNumber)"
+          
+          # Parse YYMMDD.RR format
+          $parts = $buildNumber.Split('.')
+          $datePart = $parts[0]  # YYMMDD
+          $counter = [int]$parts[1]  # RR - convert to int to remove leading zeros
+          
+          # Convert YYMMDD to yyyy.MM.dd
+          $yy = $datePart.Substring(0, 2)
+          $mm = $datePart.Substring(2, 2)
+          $dd = $datePart.Substring(4, 2)
+          $yyyy = "20$yy"
+          
+          # Generate yyyy.MM.dd.counter format for assembly version
+          $assemblyVersion = "$yyyy.$mm.$dd.$counter"
+          
+          # Check if this is a prerelease (not main branch)
+          $branchName = "$(Build.SourceBranchName)"
+          $isPrerelease = $branchName -ne "main"
+          
+          # Package version uses same format as assembly version
+          if ($isPrerelease) {
+            $safeBranchName = $branchName -replace '[^a-zA-Z0-9-]', '-'
+            $packageVersion = "$assemblyVersion-$safeBranchName"
+          } else {
+            $packageVersion = $assemblyVersion
+          }
+          
+          Write-Host "Assembly Version: $assemblyVersion"
+          Write-Host "Package Version: $packageVersion"
+          
+          echo "##vso[task.setvariable variable=AssemblyVersion]$assemblyVersion"
+          echo "##vso[task.setvariable variable=PackageVersion]$packageVersion"
+          echo "##vso[build.updatebuildnumber]$assemblyVersion"
+    
+    # Authenticate with Azure Artifacts
+    - task: NuGetAuthenticate@1
+      displayName: 'Authenticate with Azure Artifacts'
+    
+    # Run dotnet format
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet format'
+      inputs:
+        command: 'custom'
+        custom: 'format'
+        arguments: '--verify-no-changes --verbosity diagnostic'
+      continueOnError: false
+    
+    # Restore dependencies
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet restore'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+        feedsToUse: 'select'
+        vstsFeed: '$(AzureArtifactsFeed)'
+        includeNuGetOrg: true
+    
+    # Build all projects
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet build'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore /p:AssemblyVersion=$(AssemblyVersion) /p:FileVersion=$(AssemblyVersion) /p:InformationalVersion=$(AssemblyVersion)'
+    
+    # Run tests with code coverage
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet test'
+      inputs:
+        command: 'test'
+        projects: '**/*[Tt]est*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --collect:"XPlat Code Coverage"'
+        publishTestResults: true
+      continueOnError: false
+    
+    # Copy code coverage results
+    - task: CopyFiles@2
+      displayName: 'Copy Code Coverage'
+      inputs:
+        SourceFolder: '$(Agent.TempDirectory)'
+        Contents: '**/coverage.cobertura.xml'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)/CodeCoverage'
+        flattenFolders: true
+      condition: succeededOrFailed()
+    
+    # Publish code coverage results
+    - task: PublishCodeCoverageResults@2
+      displayName: 'Publish Code Coverage'
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: '$(Build.ArtifactStagingDirectory)/CodeCoverage/coverage.cobertura.xml'
+      condition: succeededOrFailed()
+    
+    # Pack NuGet package for Api project only
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet pack Api'
+      inputs:
+        command: 'pack'
+        packagesToPack: '**/*Api.csproj;!**/*[Tt]est*.csproj;!**/*WebApi.csproj'
+        configuration: '$(buildConfiguration)'
+        nobuild: true
+        versioningScheme: 'byEnvVar'
+        versionEnvVar: 'PackageVersion'
+        packDirectory: '$(Build.ArtifactStagingDirectory)/packages'
+    
+    # Publish WebApi for deployment
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet publish WebApi'
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: '**/Audabit.Service.Template.WebApi.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/webapi'
+        zipAfterPublish: true
+        modifyOutputPath: true
+    
+    # Publish NuGet package as artifact
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish NuGet Package Artifact'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/packages'
+        ArtifactName: 'nuget-packages'
+        publishLocation: 'Container'
+    
+    # Publish WebApi as artifact for deployment
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish WebApi Artifact'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/webapi'
+        ArtifactName: 'webapi'
+        publishLocation: 'Container'
+    
+    # Publish code coverage as artifact
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Code Coverage Artifact'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)/CodeCoverage'
+        ArtifactName: 'codecoverage'
+        publishLocation: 'Container'
+      condition: succeededOrFailed()
+    
+    # Push Api NuGet package to Azure Artifacts feed
+    - task: DotNetCoreCLI@2
+      displayName: 'Push Api NuGet Package to Azure Artifacts'
+      inputs:
+        command: 'push'
+        packagesToPush: '$(Build.ArtifactStagingDirectory)/packages/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/packages/**/*.symbols.nupkg'
+        nuGetFeedType: 'internal'
+        publishVstsFeed: '$(AzureArtifactsFeed)'
+      condition: succeeded()
+    
+    # Sync to GitHub
+    - task: PowerShell@2
+      displayName: 'Mirror Repository to GitHub'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $repoName = "$(Build.Repository.Name)"
+          $githubOwner = "$(GitHubOwner)"
+          $branchName = "$(Build.SourceBranchName)"
+          
+          Write-Host "Syncing to GitHub: $githubOwner/$repoName"
+          Write-Host "Current branch: $branchName"
+          
+          # Configure git
+          git config user.email "azure-pipelines@audabit.nl"
+          git config user.name "Azure Pipelines"
+          
+          # Remove existing remote if it exists
+          git remote remove github 2>$null
+          
+          # Add GitHub remote
+          git remote add github https://$(GitHubPAT)@github.com/$githubOwner/$repoName.git
+          
+          # Fetch all branches and tags from origin
+          git fetch origin --tags
+          
+          # Push current branch
+          git push github HEAD:refs/heads/$branchName --force
+          
+          # Push all tags
+          git push github --tags --force
+          
+          Write-Host "Successfully synced to GitHub"
+      condition: and(succeeded(), in(variables['Build.SourceBranchName'], 'main', 'develop'))
+      continueOnError: true

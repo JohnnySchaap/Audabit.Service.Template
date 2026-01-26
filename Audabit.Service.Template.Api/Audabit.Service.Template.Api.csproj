@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- NuGet Package Metadata -->
+    <PackageId>Audabit.Service.Template.Api</PackageId>
+    <Authors>John Schaap</Authors>
+    <Company>Audabit Software Solutions B.V.</Company>
+    <Product>Audabit Service Template</Product>
+    <Description>API contracts layer containing request/response models, DTOs, and domain models for the Template service.</Description>
+    <Copyright>Copyright © Audabit Software Solutions B.V. 2026</Copyright>
+    <PackageTags>api;contracts;dto;models;design-patterns</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/JohnnySchaap/Audabit.Service.Template</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JohnnySchaap/Audabit.Service.Template</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    
+    <!-- Package Build Settings -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>

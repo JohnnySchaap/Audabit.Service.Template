@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>John Schaap</Authors>
+    <Company>Audabit Software Solutions B.V.</Company>
+    <Product>Audabit.Service.Template</Product>
+    <Description>ASP.NET Core Web API demonstrating design patterns, code standards, and best practices.</Description>
+    <Copyright>Copyright © Audabit Software Solutions B.V. 2026</Copyright>
+    <PackageTags>aspnetcore;webapi;design-patterns;best-practices</PackageTags>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
+    <PackageReference Include="Audabit.Common.ApiVersioning.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.CorrelationId.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.ExceptionHandling.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.HealthChecks.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.HttpClient.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.Observability.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.Security.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.ServiceInfo.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.Swagger.AspNet" Version="10.0.*" />
+    <PackageReference Include="Audabit.Common.Validation.AspNet" Version="10.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Audabit.Service.Template.Api\Audabit.Service.Template.Api.csproj" />
+    <ProjectReference Include="..\Audabit.Service.Template.App\Audabit.Service.Template.App.csproj" />
+    <ProjectReference Include="..\Audabit.Service.Template.Infra\Audabit.Service.Template.Infra.csproj" />
+  </ItemGroup>
+
+  <!-- Copy XML documentation files from NuGet packages to output directory for Swagger -->
+  <Target Name="CopyXmlDocumentationFromPackages" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <!-- Find XML files alongside the resolved reference DLLs -->
+      <XmlDocFiles Include="@(ReferencePath -> '%(RootDir)%(Directory)%(Filename).xml')" Condition="Exists('%(RootDir)%(Directory)%(Filename).xml')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(XmlDocFiles)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true"
+          Condition="'@(XmlDocFiles)' != ''" />
+  </Target>
+
+  <!-- Copy XML documentation files to publish directory -->
+  <Target Name="CopyXmlDocumentationForPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <!-- Find XML files alongside the resolved reference DLLs -->
+      <XmlDocFilesPublish Include="@(ReferencePath -> '%(RootDir)%(Directory)%(Filename).xml')" Condition="Exists('%(RootDir)%(Directory)%(Filename).xml')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(XmlDocFilesPublish)"
+          DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true"
+          Condition="'@(XmlDocFilesPublish)' != ''" />
+  </Target>
+
+</Project>

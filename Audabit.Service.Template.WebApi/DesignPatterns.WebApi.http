@@ -1,0 +1,83 @@
+@WebApi_HostAddress = http://localhost:5248
+@ApiKey = ThisIsASampleApiWithRandomCharacters
+@CorrelationId = 00-1111111111111111111111111111111-1111111111111111-00
+
+### Home - Get service info
+GET {{WebApi_HostAddress}}/
+X-Correlation-ID: {{CorrelationId}}
+###
+
+### Weather v1.0
+# Get forecast by country code
+# Version: 1.0 (URL Segment)
+GET {{WebApi_HostAddress}}/v1/weather/forecast/US
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
+###
+
+### Weather
+# Get forecast 
+# Version: No version - uses latest -- NOTE: The Template Web Api has this disabled by default. Change the controller attribute to enable.
+GET {{WebApi_HostAddress}}/weather/forecast/US
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
+
+### Weather v1.0
+# Get forecast by country code
+# Version: 1.0 (HTTP Header) -- NOTE: The Template Web Api has this disabled by default. Change the controller attribute to enable.
+GET {{WebApi_HostAddress}}/weather/forecast/US
+api-version: 1.0
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
+###
+
+### Weather v1.0
+# Get forecast by country code 
+# Version: 1.0 (Query String) -- NOTE: The Template Web Api has this disabled by default. Change the controller attribute to enable.
+GET {{WebApi_HostAddress}}/weather/forecast/US?api-version=1.0
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
+###
+
+
+### Weather
+# Update forecast by country code
+# Version: 1.0 (URL Segment)
+PUT {{WebApi_HostAddress}}/v1/weather/forecast/US
+Content-Type: application/json
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
+
+{
+  "someRandomParameter": "test value"
+}
+
+###
+
+### Star Wars
+# Get Star Wars Character - Luke Skywalker (ID 1)
+# Version: 1.0 (URL Segment)
+GET {{WebApi_HostAddress}}/v1/starwars/Person/1
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
+
+### Star Wars
+# Get Star Wars Character - C-3PO (ID 2)
+# Version: 1.0 (URL Segment)
+GET {{WebApi_HostAddress}}/v1/starwars/Person/2
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
+
+### Star Wars
+# Get Star Wars Character - Non-existent (ID 991)
+# Version: 1.0 (URL Segment)
+GET {{WebApi_HostAddress}}/v1/starwars/Person/991
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
+
+### Star Wars
+# Get Star Wars Character - Non-existent (ID 992)
+# Version: 1.0 (URL Segment)
+GET {{WebApi_HostAddress}}/v1/starwars/Person/992
+X-API-KEY: {{ApiKey}}
+X-Correlation-ID: {{CorrelationId}}
